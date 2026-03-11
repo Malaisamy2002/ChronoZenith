@@ -1,0 +1,76 @@
+name: 🕐 Build Chrono Zenith APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install Python dependencies
+        run: pip install Pillow
+
+      - name: ☕ Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: 💾 Cache Android SDK
+        uses: actions/cache@v4
+        id: sdk-cache
+        with:
+          path: sdk
+          key: android-sdk-34-bt-34.0.0-pt-${{ runner.os }}-v4
+
+      - name: 🔧 Setup Android SDK (first time only)
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        run: python3 build.py setup
+
+      - name: 🔨 Build APK
+        run: python3 build.py build
+
+      - name: 📋 APK info
+        run: ls -lh ChronoZenith.apk
+
+      - name: 📱 Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChronoZenith-APK
+          path: ChronoZenith.apk
+          retention-days: 90
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: 📥 Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: ChronoZenith-APK
+
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ChronoZenith.apk
+          name: "Chrono · Zenith ${{ github.ref_name }}"
+          body: |
+            ## 🕐 Chrono · Zenith ${{ github.ref_name }}
+            Luxurious Pomodoro focus timer with 6 animated clock faces,
+            Web Audio sound engine, haptic feedback, and constellation canvas.
+            ### Install
+            Download ChronoZenith.apk, transfer to Android phone, tap to install.
